@@ -49,11 +49,11 @@
 > Code lives in **Surrey GitLab** (no backups on the VM).
 > See `VM Connection Details.md` for the full brief.
 - [x] 23. Push repo to Surrey GitLab and configure a Personal Access Token for VM clone access
-- [ ] 24. SSH in (`ssh user@10.2.8.118`) and install Docker Engine + Compose plugin
-- [ ] 25. `git clone` the repo onto the VM and run `docker compose up -d --build`
-- [ ] 26. Confirm `https://com2042-hendrixx.csee.surrey.ac.uk` reaches the dashboard, REST endpoints (`/api/*`) and the WebSocket (`/ws`) end-to-end (only port 3000 is exposed; nginx in the frontend container reverse-proxies to backend + ML)
-- [ ] 27. Verify SQLite persists across `docker compose down && up` (named volume `campus-db`) — verified locally; re-confirm on the VM
-- [ ] 28. Configure VM-side process to bring the stack back up on reboot (the per-service `restart: unless-stopped` covers container crashes; Docker's own systemd unit covers reboots)
+- [x] 24. SSH in (`ssh user@10.2.8.118`) and install Docker Engine + Compose plugin
+- [x] 25. `git clone` the repo onto the VM and run `docker compose up -d --build`
+- [x] 26. Confirm `https://com2042-hendrixx.csee.surrey.ac.uk` reaches the dashboard, REST endpoints (`/api/*`) and the WebSocket (`/ws`) end-to-end (only port 3000 is exposed; nginx in the frontend container reverse-proxies to backend + ML)
+- [x] 27. Verify SQLite persists across `docker compose down && up` (named volume `campus-db`) — verified locally; re-confirm on the VM
+- [x] 28. Configure VM-side process to bring the stack back up on reboot (the per-service `restart: unless-stopped` covers container crashes; Docker's own systemd unit covers reboots)
 - [x] 29. Local `docker compose up` fallback tested as Final Audit backup
 
 ### Phase 7 — Repo hygiene
