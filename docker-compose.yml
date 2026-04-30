@@ -1,0 +1,50 @@
+name: smart-campus
+
+# The Surrey VM gateway forwards a single HTTP port (3000) to this stack, so
+# only `frontend` publishes a host port. nginx in the frontend container fans
+# out /api/* and /ws to the backend over the internal docker network.
+
+services:
+  ml:
+    build:
+      context: ./python_ml
+    container_name: smart-campus-ml
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/docs',timeout=3)\" || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  backend:
+    build:
+      context: .
+    container_name: smart-campus-backend
+    environment:
+      PORT: "8080"
+      DB_PATH: /app/data/campus.db
+      ML_URL: http://ml:8000
+    volumes:
+      - campus-db:/app/data
+    depends_on:
+      ml:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      # Empty VITE_API_BASE_URL ⇒ the bundle uses same-origin relative URLs
+      # (/api/*, /ws), which nginx proxies to the backend container.
+      args:
+        VITE_API_BASE_URL: ""
+    container_name: smart-campus-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  campus-db:

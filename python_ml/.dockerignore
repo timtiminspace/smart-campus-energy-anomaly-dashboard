@@ -1,0 +1,10 @@
+__pycache__
+*.py[cod]
+.venv
+venv
+.env
+.DS_Store
+*.log
+seed_db.py
+train.py
+make_scalar.py

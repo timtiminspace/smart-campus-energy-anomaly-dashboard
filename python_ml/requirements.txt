@@ -1,0 +1,9 @@
+# Web Server & API Framework
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.6
+
+# Machine Learning & Data Processing
+torch>=2.2
+numpy>=1.26
+pandas>=2.1

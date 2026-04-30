@@ -1,0 +1,127 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 10%;
+    --foreground: 210 20% 92%;
+
+    --card: 220 18% 13%;
+    --card-foreground: 210 20% 92%;
+
+    --popover: 220 18% 15%;
+    --popover-foreground: 210 20% 92%;
+
+    --primary: 172 66% 50%;
+    --primary-foreground: 220 20% 10%;
+
+    --secondary: 220 16% 18%;
+    --secondary-foreground: 210 20% 80%;
+
+    --muted: 220 14% 16%;
+    --muted-foreground: 215 12% 55%;
+
+    --accent: 172 66% 50%;
+    --accent-foreground: 220 20% 10%;
+
+    --destructive: 4 72% 58%;
+    --destructive-foreground: 210 40% 98%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 220 20% 10%;
+
+    --success: 152 60% 46%;
+    --success-foreground: 220 20% 10%;
+
+    --border: 220 14% 20%;
+    --input: 220 14% 20%;
+    --ring: 172 66% 50%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 220 18% 11%;
+    --sidebar-foreground: 210 20% 80%;
+    --sidebar-primary: 172 66% 50%;
+    --sidebar-primary-foreground: 220 20% 10%;
+    --sidebar-accent: 220 16% 18%;
+    --sidebar-accent-foreground: 210 20% 80%;
+    --sidebar-border: 220 14% 20%;
+    --sidebar-ring: 172 66% 50%;
+
+    --chart-energy: 172 66% 50%;
+    --chart-temp: 38 92% 55%;
+    --chart-co2: 280 60% 60%;
+    --chart-grid: 220 14% 18%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+    overflow-wrap: break-word;
+  }
+}
+
+@layer utilities {
+  .font-mono-data {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .glow-teal {
+    box-shadow: 0 0 20px hsl(172 66% 50% / 0.15), 0 0 40px hsl(172 66% 50% / 0.05);
+  }
+
+  .glow-warning {
+    box-shadow: 0 0 20px hsl(38 92% 55% / 0.15), 0 0 40px hsl(38 92% 55% / 0.05);
+  }
+
+  .glow-destructive {
+    box-shadow: 0 0 20px hsl(4 72% 58% / 0.15), 0 0 40px hsl(4 72% 58% / 0.05);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

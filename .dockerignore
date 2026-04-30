@@ -1,0 +1,27 @@
+# Keep the Go build context lean.
+.git
+.gitignore
+.DS_Store
+.vscode
+.idea
+
+# Frontend tree (built by its own Dockerfile).
+frontend
+
+# Python ML tree (built by its own Dockerfile).
+python_ml
+
+# Local runtime artefacts.
+data
+*.db
+*.sqlite
+*.sqlite3
+server
+
+# Docs / scratch.
+*.md
+TREE.md
+"VM Connection Details.md"
+
+# Nothing test-related needed inside the runtime image.
+**/*_test.go
