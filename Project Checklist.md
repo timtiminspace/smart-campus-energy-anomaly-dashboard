@@ -302,6 +302,4 @@
 | Holiday API | `internal/integrations/holidays.go` | ✅ |
 | Run Script | `run.sh` | ✅ |
 
-> ⚠️ The `backend/` directory is a stale duplicate — all active code uses `cmd/` + `internal/` at the project root.
-
 ---
