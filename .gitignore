@@ -1,0 +1,106 @@
+# Standard .gitignore for Go, React, Python and macOS
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# IDEs and Editors
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*.sw?
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Go — compiled binaries
+bin/
+obj/
+# Anchored to repo root so it only matches the compiled ./server binary,
+# not the cmd/server/ source package.
+/server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Node.js / React / Vite
+node_modules/
+build/
+dist/
+dist-ssr/
+.eslintcache
+.next/
+.vite/
+
+# Frontend test / e2e artefacts
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Databases (runtime)
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Temp
+tmp/
+.temp/
+
+# =========================
+# Python (ML Microservice)
+# =========================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtualenvs (run.sh creates python_ml/.venv)
+.venv/
+venv/
+env/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# =========================
+# Docker
+# =========================
+# Local-only compose overrides (e.g. VM-specific port/host tweaks)
+docker-compose.override.yml
+compose.override.yml
+
+# =========================
+# Secrets / credentials
+# =========================
+# Surrey VM access details — contains the SSH password.
+VM Connection Details.md
+CLAUDE.md
