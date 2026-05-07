@@ -9,21 +9,31 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"log"
+	"smart-campus-dashboard/internal/ws"
 )
 
 type Handlers struct {
-	db       *sql.DB
-	mlClient *integrations.MLClient
+    db       *sql.DB
+    mlClient *integrations.MLClient
+    hub      *ws.Hub
 }
 
-func NewHandlers(db *sql.DB, mlClient *integrations.MLClient) *Handlers {
-	return &Handlers{db: db, mlClient: mlClient}
+func NewHandlers(db *sql.DB, mlClient *integrations.MLClient, hub *ws.Hub) *Handlers {
+	return &Handlers{db: db, mlClient: mlClient, hub: hub}
 }
 
 func jsonResponse(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
+}
+
+// Replaces http.Error() calls.
+func jsonError(w http.ResponseWriter, msg string, status int) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(status)
+    json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
 func parseTimestamp(s string) time.Time {
@@ -38,7 +48,7 @@ func parseTimestamp(s string) time.Time {
 // GET /api/readings?building=X&limit=N
 func (h *Handlers) GetReadings(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -66,7 +76,8 @@ func (h *Handlers) GetReadings(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("db error in GetReadings: %v", err)
+		jsonError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -93,7 +104,7 @@ func (h *Handlers) GetAnomalies(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPatch:
 		h.updateAnomalyTag(w, r)
 	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -122,7 +133,8 @@ func (h *Handlers) listAnomalies(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.db.Query(query, args...)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("db error in listAnomalies: %v", err)
+		jsonError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -143,22 +155,37 @@ func (h *Handlers) listAnomalies(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) updateAnomalyTag(w http.ResponseWriter, r *http.Request) {
+	// Adds body size limit.
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		http.Error(w, "id required", http.StatusBadRequest)
+		jsonError(w, "id required", http.StatusBadRequest)
 		return
+	}
+
+	// Ensures id is numeric.
+	if _, err := strconv.ParseInt(id, 10, 64); err != nil {
+    	jsonError(w, "id must be a valid integer", http.StatusBadRequest)
+    	return
 	}
 
 	var body struct {
 		Tag string `json:"tag"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+
+	if len(body.Tag) > 100 {
+		jsonError(w, "tag exceeds maximum length", http.StatusBadRequest)
 		return
 	}
 
 	if _, err := h.db.Exec("UPDATE anomalies SET tag = ? WHERE id = ?", body.Tag, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("db error in updateAnomalies: %v", err)
+		jsonError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -168,9 +195,12 @@ func (h *Handlers) updateAnomalyTag(w http.ResponseWriter, r *http.Request) {
 // POST /api/reports  — no IP or identity data logged
 func (h *Handlers) CreateReport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	// Adds body size limit.
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) 
 
 	var body struct {
 		BuildingID  string `json:"building_id"`
@@ -178,11 +208,16 @@ func (h *Handlers) CreateReport(w http.ResponseWriter, r *http.Request) {
 		Description string `json:"description"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
+		jsonError(w, "invalid body", http.StatusBadRequest)
 		return
 	}
 	if body.Category == "" || body.Description == "" {
-		http.Error(w, "category and description required", http.StatusBadRequest)
+		jsonError(w, "category and description required", http.StatusBadRequest)
+		return
+	}
+
+	if len(body.Category) > 100 || len(body.Description) > 2000 {
+		jsonError(w, "category or description exceeds maximum length", http.StatusBadRequest)
 		return
 	}
 
@@ -191,7 +226,8 @@ func (h *Handlers) CreateReport(w http.ResponseWriter, r *http.Request) {
 		body.BuildingID, body.Category, body.Description,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("db error in CreateReport: %v", err)
+		jsonError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -201,6 +237,11 @@ func (h *Handlers) CreateReport(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/forecast?building=X&steps=Y
 func (h *Handlers) GetForecast(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+    	jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
+    	return
+	}
+	
 	building := r.URL.Query().Get("building")
 	if building == "" {
 		building = "library"
@@ -209,7 +250,7 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, r *http.Request) {
 	// --- THE FIX: Dynamically read 'steps' from the React frontend ---
 	steps := 12 // Default to 1 hour
 	if s := r.URL.Query().Get("steps"); s != "" {
-		if n, err := strconv.Atoi(s); err == nil && n > 0 {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 && n <= 288 {
 			steps = n
 		}
 	}
@@ -224,7 +265,8 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, r *http.Request) {
 		building,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("db error in GetForecast: %v", err)
+		jsonError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -269,7 +311,8 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, r *http.Request) {
 	startTime := parseTimestamp(oldestTs).Format(time.RFC3339)
 	forecasts, err := h.mlClient.GetForecast(historyKWh, historyTemp, historyCO2, steps, startTime)
 	if err != nil {
-		jsonResponse(w, http.StatusOK, map[string]interface{}{})
+		log.Printf("ml error in GetForecast: %v", err)
+		jsonError(w, "forecast service unavailable", http.StatusBadGateway)
 		return
 	}
 
@@ -299,4 +342,54 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, r *http.Request) {
 	mapToTimeline("co2", forecasts["co2"])
 
 	jsonResponse(w, http.StatusOK, response)
+}
+
+// POST /api/test/inject-spike  — forces a high-kWh anomaly for load/latency testing
+func (h *Handlers) InjectSpike(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodPost {
+		jsonError(w, "method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+
+    building := r.URL.Query().Get("building")
+    if building == "" {
+        building = "library"
+    }
+
+    now := time.Now()
+    result, err := h.db.Exec(
+        `INSERT INTO readings (building_id, timestamp, kwh, temperature, co2_ppm)
+         VALUES (?, ?, ?, ?, ?)`,
+        building, now.Format("2006-01-02 15:04:05"), 9999.0, 22.0, 400.0,
+    )
+    if err != nil {
+        log.Printf("db error in InjectSpike: %v", err)
+        jsonError(w, "internal server error", http.StatusInternalServerError)
+        return
+    }
+    readingID, _ := result.LastInsertId()
+
+    anomalyResult, err := h.db.Exec(
+        `INSERT INTO anomalies (reading_id, detected_at, severity, tag) VALUES (?, datetime('now'), ?, ?)`,
+        readingID, "high", "test-spike",
+    )
+    if err != nil {
+        log.Printf("db error in InjectSpike (anomaly): %v", err)
+		jsonError(w, "internal server error", http.StatusInternalServerError)
+        return
+    }
+    anomalyID, _ := anomalyResult.LastInsertId()
+
+    reading := models.Reading{
+        ID: readingID, BuildingID: building,
+        Timestamp: now, KWh: 9999.0, Temperature: 22.0, CO2PPM: 400.0,
+    }
+    anomaly := models.Anomaly{
+        ID: anomalyID, ReadingID: readingID,
+        DetectedAt: now, Severity: "high", Tag: "test-spike",
+        BuildingID: building, KWh: 9999.0, Temperature: 22.0, CO2PPM: 400.0,
+    }
+    h.hub.Broadcast(models.AnomalyAlert{Type: "anomaly", Anomaly: anomaly, Reading: reading})
+
+    jsonResponse(w, http.StatusOK, map[string]string{"status": "spike injected"})
 }

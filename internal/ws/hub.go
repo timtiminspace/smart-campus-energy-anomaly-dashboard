@@ -5,12 +5,26 @@ import (
 	"log"
 	"net/http"
 	"sync"
-
+	"os"
+	"time"
 	"github.com/gorilla/websocket"
 )
 
+// Required for ping / pong handling.
+const (
+    writeWait  = 10 * time.Second
+    pongWait   = 60 * time.Second
+    pingPeriod = (pongWait * 9) / 10
+)
+
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+    CheckOrigin: func(r *http.Request) bool {
+        allowed := os.Getenv("ALLOWED_ORIGIN")
+        if allowed == "" {
+            return true // Returns true if ALLOWED_ORIGIN is unset.
+        }
+        return r.Header.Get("Origin") == allowed
+    },
 }
 
 type Client struct {
@@ -54,15 +68,24 @@ func (h *Hub) Run() {
 
 		case message := <-h.broadcast:
 			h.mu.Lock()
+			clients := make([]*Client, 0, len(h.clients))
 			for client := range h.clients {
+				clients = append(clients, client)
+			}
+			h.mu.Unlock()
+
+			for _, client := range clients {
 				select {
 				case client.send <- message:
 				default:
-					close(client.send)
-					delete(h.clients, client)
+					h.mu.Lock()
+					if _, ok := h.clients[client]; ok {
+						close(client.send)
+						delete(h.clients, client)
+					}
+					h.mu.Unlock()
 				}
 			}
-			h.mu.Unlock()
 		}
 	}
 }
@@ -95,27 +118,45 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Client) writePump() {
-	defer c.conn.Close()
-	for {
-		msg, ok := <-c.send
-		if !ok {
-			c.conn.WriteMessage(websocket.CloseMessage, []byte{})
-			return
-		}
-		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			return
-		}
-	}
+    ticker := time.NewTicker(pingPeriod)
+    defer func() {
+        ticker.Stop()
+        c.conn.Close()
+    }()
+    for {
+        select {
+        case msg, ok := <-c.send:
+            c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+            if !ok {
+                c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+                return
+            }
+            if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+                return
+            }
+        case <-ticker.C:
+            c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+            if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+                return
+            }
+        }
+    }
 }
 
 func (c *Client) readPump() {
-	defer func() {
-		c.hub.unregister <- c
-		c.conn.Close()
-	}()
-	for {
-		if _, _, err := c.conn.ReadMessage(); err != nil {
-			return
-		}
-	}
+    defer func() {
+        c.hub.unregister <- c
+        c.conn.Close()
+    }()
+	c.conn.SetReadLimit(512)
+    c.conn.SetReadDeadline(time.Now().Add(pongWait))
+    c.conn.SetPongHandler(func(string) error {
+        c.conn.SetReadDeadline(time.Now().Add(pongWait))
+        return nil
+    })
+    for {
+        if _, _, err := c.conn.ReadMessage(); err != nil {
+            return
+        }
+    }
 }

@@ -9,12 +9,16 @@ import (
 )
 
 type HolidayClient struct {
-	cache map[string]bool // date string (YYYY-MM-DD) → is holiday
-	mu    sync.RWMutex
+    cache  map[string]bool
+    mu     sync.RWMutex
+    client *http.Client
 }
 
 func NewHolidayClient() *HolidayClient {
-	return &HolidayClient{cache: make(map[string]bool)}
+    return &HolidayClient{
+        cache:  make(map[string]bool),
+        client: &http.Client{Timeout: 5 * time.Second},
+    }
 }
 
 // IsHoliday returns true if the given time falls on a UK public holiday.
@@ -30,11 +34,17 @@ func (c *HolidayClient) IsHoliday(t time.Time) bool {
 
 	year := t.Year()
 	url := fmt.Sprintf("https://date.nager.at/api/v3/PublicHolidays/%d/GB", year)
-	resp, err := http.Get(url)
+	resp, err := c.client.Get(url)
+	
 	if err != nil {
 		return false
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
 
 	var holidays []struct {
 		Date string `json:"date"`

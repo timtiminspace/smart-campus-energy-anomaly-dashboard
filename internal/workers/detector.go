@@ -10,8 +10,10 @@ import (
 // If anomalous, it persists an anomaly record and broadcasts it over WebSocket.
 func (i *Ingestor) detectAnomaly(reading models.Reading, outOfHours, isHoliday bool) error {
 	rows, err := i.db.Query(
-		`SELECT kwh FROM readings WHERE building_id = ? ORDER BY timestamp DESC LIMIT 12`,
-		reading.BuildingID,
+		`SELECT kwh FROM readings
+		WHERE building_id = ? AND id != ?
+		ORDER BY timestamp DESC LIMIT 24`,
+    	reading.BuildingID, reading.ID,
 	)
 	if err != nil {
 		return err
@@ -27,7 +29,7 @@ func (i *Ingestor) detectAnomaly(reading models.Reading, outOfHours, isHoliday b
 		vals = append(vals, v)
 	}
 
-	if len(vals) < 3 {
+	if len(vals) < 12 {
 		return nil
 	}
 
@@ -64,18 +66,21 @@ func (i *Ingestor) detectAnomaly(reading models.Reading, outOfHours, isHoliday b
 
 	severity := "low"
 	switch {
+	case zScore >= 5:
+		severity = "critical"
 	case zScore >= 4:
 		severity = "high"
 	case zScore >= 3:
 		severity = "medium"
 	}
 
-	tag := ""
+	// Currently only supports detecting kwh anomalies.
+	tag := "kwh-spike"
 	switch {
 	case isHoliday:
-		tag = "holiday-spike"
+		tag = tag + " holiday-spike"
 	case outOfHours:
-		tag = "out-of-hours"
+		tag = tag + " out-of-hours"
 	}
 
 	result, err := i.db.Exec(

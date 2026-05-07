@@ -53,13 +53,14 @@ func main() {
 	c.Start()
 	defer c.Stop()
 
-	h := handlers.NewHandlers(db, mlClient)
+	h := handlers.NewHandlers(db, mlClient, hub)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/readings", h.GetReadings)
 	mux.HandleFunc("/api/anomalies", h.GetAnomalies)
 	mux.HandleFunc("/api/reports", h.CreateReport)
 	mux.HandleFunc("/api/forecast", h.GetForecast)
+	mux.HandleFunc("/api/test/inject-spike", h.InjectSpike)
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		ws.ServeWS(hub, w, r)
 	})

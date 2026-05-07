@@ -39,8 +39,14 @@ func (i *Ingestor) Run() {
 	isHoliday := i.holidays.IsHoliday(now)
 	isOutOfHours := now.Hour() < 8 || now.Hour() >= 18
 
+    outdoorTemp, err := i.weather.GetCurrentTemperature()
+    if err != nil {
+        log.Printf("ingestor: weather unavailable, using fallback: %v", err)
+        outdoorTemp = 15.0 // Fallback value.
+    }
+
 	for _, b := range buildings {
-		reading := i.generateReading(b.id, now, isOutOfHours, isHoliday)
+		reading := i.generateReading(b.id, now, isOutOfHours, isHoliday, outdoorTemp)
 
 		result, err := i.db.Exec(
 			`INSERT INTO readings (building_id, timestamp, kwh, temperature, co2_ppm) VALUES (?, ?, ?, ?, ?)`,
@@ -63,14 +69,14 @@ func (i *Ingestor) Run() {
 	log.Printf("ingestor: generated readings for %d buildings (holiday=%v, out-of-hours=%v)", len(buildings), isHoliday, isOutOfHours)
 }
 
-func (i *Ingestor) generateReading(buildingID string, ts time.Time, outOfHours, isHoliday bool) models.Reading {
+func (i *Ingestor) generateReading(buildingID string, ts time.Time, outOfHours, isHoliday bool, outdoorTemp float64) models.Reading {
 	occupancyFactor := 1.0
 	if outOfHours || isHoliday {
 		occupancyFactor = 0.25
 	}
 
 	baseKWh := (10 + rand.Float64()*190) * occupancyFactor
-	baseTemp := 18 + rand.Float64()*10
+	baseTemp := outdoorTemp + 4.0 + rand.Float64()*2.0
 	baseCO2 := 400 + rand.Float64()*800*occupancyFactor
 
 	// Inject a kWh spike ~15% of the time to exercise anomaly detection
