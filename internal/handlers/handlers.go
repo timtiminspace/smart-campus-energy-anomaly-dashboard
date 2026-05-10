@@ -216,6 +216,15 @@ func (h *Handlers) CreateReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	validCategories := map[string]bool{
+		"lighting": true, "hvac": true, "equipment": true,
+		"water": true, "security": true, "other": true,
+	}
+	if !validCategories[body.Category] {
+		jsonError(w, "invalid category", http.StatusBadRequest)
+		return
+	}
+
 	if len(body.Category) > 100 || len(body.Description) > 2000 {
 		jsonError(w, "category or description exceeds maximum length", http.StatusBadRequest)
 		return

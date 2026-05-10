@@ -136,8 +136,8 @@ func TestDetectAnomaly_FlagsLargeSpike(t *testing.T) {
 		t.Fatalf("expected anomaly severity to be populated")
 	}
 
-	if tag != "" {
-		t.Fatalf("expected no contextual tag during normal hours/non-holiday, got %q", tag)
+	if tag != "kwh-spike" {
+		t.Fatalf("expected kwh-spike tag during normal hours/non-holiday, got %q", tag)
 	}
 }
 
@@ -162,8 +162,8 @@ func TestDetectAnomaly_AddsOutOfHoursTag(t *testing.T) {
 		t.Fatalf("failed to read anomaly tag: %v", err)
 	}
 
-	if tag != "out-of-hours" {
-		t.Fatalf("expected out-of-hours tag, got %q", tag)
+	if tag != "kwh-spike out-of-hours" {
+		t.Fatalf("expected 'kwh-spike out-of-hours' tag, got %q", tag)
 	}
 }
 
@@ -188,8 +188,8 @@ func TestDetectAnomaly_AddsHolidayTag(t *testing.T) {
 		t.Fatalf("failed to read anomaly tag: %v", err)
 	}
 
-	if tag != "holiday-spike" {
-		t.Fatalf("expected holiday-spike tag, got %q", tag)
+	if tag != "kwh-spike holiday-spike" {
+		t.Fatalf("expected 'kwh-spike holiday-spike' tag, got %q", tag)
 	}
 }
 

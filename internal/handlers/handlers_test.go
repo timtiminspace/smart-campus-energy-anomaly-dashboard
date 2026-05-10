@@ -34,7 +34,7 @@ func newTestHandlers(t *testing.T) (*Handlers, *sql.DB) {
 
 	// nil ML client is okay for most handler tests.
 	// Tests that touch /api/forecast should avoid forcing a real ML call unless using a mock.
-	h := NewHandlers(db, nil)
+	h := NewHandlers(db, nil, nil)
 
 	return h, db
 }
