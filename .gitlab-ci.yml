@@ -1,0 +1,104 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Smart Campus Energy Anomaly — CI Pipeline (Build & Test)
+# ─────────────────────────────────────────────────────────────────────────────
+
+stages:
+  - build
+  - test
+
+# ── Global defaults ──────────────────────────────────────────────────────────
+
+variables:
+  # Speeds up Go module downloads across jobs
+  GOPATH: "$CI_PROJECT_DIR/.go"
+  GOMODCACHE: "$CI_PROJECT_DIR/.go/pkg/mod"
+
+# Cache Go modules and npm packages between pipeline runs
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - .go/pkg/mod/
+    - frontend/node_modules/
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  BUILD STAGE
+# ─────────────────────────────────────────────────────────────────────────────
+
+## Go Backend — Build
+go-build:
+  stage: build
+  image: golang:1.26-alpine
+  script:
+    - echo "▸ Downloading Go modules..."
+    - go mod download
+    - echo "▸ Building server binary..."
+    - CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o server ./cmd/server
+    - echo "✓ Go backend built successfully"
+  artifacts:
+    paths:
+      - server
+    expire_in: 1 hour
+
+## Frontend — Build
+frontend-build:
+  stage: build
+  image: node:20-alpine
+  before_script:
+    - cd frontend
+    - npm ci --prefer-offline
+  script:
+    - echo "▸ Type-checking..."
+    - npx tsc --noEmit -p tsconfig.app.json
+    - echo "▸ Linting..."
+    - npm run lint
+    - echo "▸ Building production bundle..."
+    - npm run build
+    - echo "✓ Frontend built successfully"
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 hour
+
+## Python ML — Dependency Check
+python-build:
+  stage: build
+  image: python:3.12-slim
+  before_script:
+    - cd python_ml
+    - pip install --upgrade pip
+  script:
+    - echo "▸ Installing dependencies..."
+    - pip install -r requirements.txt
+    - echo "▸ Syntax check..."
+    - python -m py_compile brain.py
+    - python -m py_compile train.py
+    - python -m py_compile seed_db.py
+    - python -m py_compile make_scalar.py
+    - echo "✓ Python ML dependencies and syntax OK"
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TEST STAGE
+# ─────────────────────────────────────────────────────────────────────────────
+
+## Go Backend — Unit Tests
+go-test:
+  stage: test
+  image: golang:1.26-alpine
+  needs: ["go-build"]
+  script:
+    - echo "▸ Running Go tests..."
+    - go test -v -race -count=1 ./...
+    - echo "✓ All Go tests passed"
+
+## Frontend — Unit Tests
+frontend-test:
+  stage: test
+  image: node:20-alpine
+  needs: ["frontend-build"]
+  before_script:
+    - cd frontend
+    - npm ci --prefer-offline
+  script:
+    - echo "▸ Running Vitest..."
+    - npm run test
+    - echo "✓ All frontend tests passed"
