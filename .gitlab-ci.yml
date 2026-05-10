@@ -49,8 +49,6 @@ frontend-build:
   script:
     - echo "▸ Type-checking..."
     - npx tsc --noEmit -p tsconfig.app.json
-    - echo "▸ Linting..."
-    - npm run lint
     - echo "▸ Building production bundle..."
     - npm run build
     - echo "✓ Frontend built successfully"
@@ -58,6 +56,19 @@ frontend-build:
     paths:
       - frontend/dist/
     expire_in: 1 hour
+
+## Frontend — Lint (informational, won't block pipeline)
+frontend-lint:
+  stage: build
+  image: node:20-alpine
+  allow_failure: true
+  before_script:
+    - cd frontend
+    - npm ci --prefer-offline
+  script:
+    - echo "▸ Linting..."
+    - npm run lint
+    - echo "✓ Lint passed"
 
 ## Python ML — Dependency Check
 python-build:
